@@ -15,8 +15,6 @@ const getRows = (_raw: string): string[] => _raw.split('\r\n')
 
 const getCells = (_row: string): string[] => _row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
 
-const getHeaders = (_rows: string[]): string[] => getCells(_rows[0])
-
 const sum = (n: number[]): number => n.reduce((acc, x) => acc + x, 0)
 
 const parseRows = (rows: string[]): Student[] => {
@@ -31,14 +29,13 @@ const parseRows = (rows: string[]): Student[] => {
     })
 }
 
-
 const FilterProblems = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[P][0-9]+/)
 const FilterAssignments = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[A][0-9]+/)
 const FilterOptional = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[O][0-9]+/)
 const FilterMaster = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[M][0-9]+/)
 
-const isCompleted = (a: number): boolean => a != 0
-const toScore = (a: Exercise): number => a.Score
+const isCompleted = (e: Exercise): boolean => e.Score != 0 || e.Title == "A1W3A1 - Flowchart or pseudo-code" 
+const toScore = (e: Exercise): number => e.Score
 
 type SortBy = 'name' | 'problems' | 'assignment' | 'optional' | 'grade' | 'avg_grade_cumulative'
 type SortDirection = 'ASC' | 'DESC'
@@ -47,10 +44,10 @@ const getAvg = (scores: number[]): number => scores.length ? sum(scores) / score
 
 const extractors: Record<SortBy, (s: Student) => number | string> = {
     name: (s) => s.Name,
-    problems: (s) => s.Exercises.filter(FilterProblems).map(toScore).filter(isCompleted).length,
-    assignment: (s) => s.Exercises.filter(FilterAssignments).map(toScore).filter(isCompleted).length,
-    optional: (s) => s.Exercises.filter(FilterOptional).map(toScore).filter(isCompleted).length,
-    grade: (s) => getAvg(s.Exercises.map(toScore).filter(isCompleted)),
+    problems: (s) => s.Exercises.filter(FilterProblems).filter(isCompleted).map(toScore).length,
+    assignment: (s) => s.Exercises.filter(FilterAssignments).filter(isCompleted).map(toScore).length,
+    optional: (s) => s.Exercises.filter(FilterOptional).filter(isCompleted).map(toScore).length,
+    grade: (s) => getAvg(s.Exercises.filter(isCompleted).map(toScore)),
     avg_grade_cumulative: (s) => getAvg(s.Exercises.map(toScore)),
 }
 
@@ -120,22 +117,22 @@ export const StudentTable: FC<StudentTableProps> = props => {
                     const exercises = student.Exercises
 
                     const problems = exercises.filter(FilterProblems)
-                    const problemsCompleted = problems.map(toScore).filter(isCompleted)
+                    const problemsCompleted = problems.filter(isCompleted).map(toScore)
 
                     const assigmnents = exercises.filter(FilterAssignments)
-                    const assigments_completed = assigmnents.map(toScore).filter(isCompleted)
+                    const assigments_completed = assigmnents.filter(isCompleted).map(toScore)
 
                     const optional = exercises.filter(FilterOptional)
-                    const optionalCompleted = optional.map(toScore).filter(isCompleted)
+                    const optionalCompleted = optional.filter(isCompleted).map(toScore)
 
                     const master = exercises.filter(FilterMaster)
-                    const masterCompleted = master.map(toScore).filter(isCompleted)
+                    const masterCompleted = master.filter(isCompleted).map(toScore)
                     const masterCheck = masterCompleted.length == master.length ? "yes" : "no"
 
                     const allScores = exercises.map(toScore)
-                    const exercisesCompleted = allScores.filter(isCompleted)
-                    const avg_grade = (sum(exercisesCompleted) / exercisesCompleted.length).toFixed(1)
-                    const avg_grade_cumulative = (sum(allScores) / allScores.length).toFixed(1)
+                    const exercisesCompleted = exercises.filter(isCompleted).map(toScore)
+                    const avg_grade = getAvg(exercisesCompleted).toFixed(1)
+                    const avg_grade_cumulative = getAvg(allScores).toFixed(1)
 
                     const showDetails = visitOption<string, boolean>(v => v == student.Id)(() => false)(state.selectedStudentId)
 
@@ -143,7 +140,7 @@ export const StudentTable: FC<StudentTableProps> = props => {
                         <td className="main-table__cell main-table__cell--id">{student.Id}</td>
                         <td className="main-table__cell main-table__cell--name">{student.Name}</td>
                         <td className="main-table__cell main-table__cell--score">{problemsCompleted.length}/{problems.length}</td>
-                        <td className="main-table__cell main-table__cell--score">{assigments_completed.length + 1}/{assigmnents.length}</td>
+                        <td className="main-table__cell main-table__cell--score">{assigments_completed.length}/{assigmnents.length}</td>
                         <td className="main-table__cell main-table__cell--score">{optionalCompleted.length}/{optional.length}</td>
                         <td className="main-table__cell main-table__cell--score">{masterCheck}</td>
                         <td className="main-table__cell main-table__cell--score">{avg_grade}</td>

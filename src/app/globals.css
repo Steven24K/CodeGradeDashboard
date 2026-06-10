@@ -1,8 +1,7 @@
 @import "tailwindcss";
 
 .input__drag {
-  border: 4px dashed #292828;
-  height: 50px;
+  height: 100vh;
   width: 100%;
 }
 

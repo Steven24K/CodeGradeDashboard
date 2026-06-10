@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import React, { useState } from "react"
 import { Option, None, Some, visitOption } from "@/utils/Option"
 import { FileInput } from "./components/FileInput"
 import { StudentTable } from "./components/StudentTable"
@@ -19,8 +19,8 @@ const setData = (_raw: string) => (s: AppState): AppState => ({
 export const App = () => {
     const [state, setState] = useState<AppState>(zeroAppState)
 
-    return <>
-        <FileInput onFileLoad={content => setState(setData(content))} />
-        <StudentTable content={visitOption<string, string>(v => v)(() => "")(state.data)} />
-    </>
+    return visitOption<string, React.JSX.Element>
+        (text => <StudentTable content={text} />)
+        (() => <FileInput onFileLoad={content => setState(setData(content))} />)
+        (state.data)
 }
