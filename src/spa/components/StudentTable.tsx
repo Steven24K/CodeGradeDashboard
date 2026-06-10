@@ -43,73 +43,31 @@ const toScore = (a: Exercise): number => a.Score
 type SortBy = 'name' | 'problems' | 'assignment' | 'optional' | 'grade' | 'avg_grade_cumulative'
 type SortDirection = 'ASC' | 'DESC'
 
-const sortStudents = (sortBy: SortBy) => (dir: SortDirection) => (a: Student, b: Student) => {
-    if (dir == 'ASC') {
-        if (sortBy == 'problems') {
-            const A = a.Exercises.filter(FilterProblems).map(toScore).filter(isCompleted).length
-            const B = b.Exercises.filter(FilterProblems).map(toScore).filter(isCompleted).length
-            return A - B
-        }
-        else if (sortBy == 'assignment') {
-            const A = a.Exercises.filter(FilterAssignments).map(toScore).filter(isCompleted).length
-            const B = b.Exercises.filter(FilterAssignments).map(toScore).filter(isCompleted).length
-            return A - B
-        }
-        else if (sortBy == 'optional') {
-            const A = a.Exercises.filter(FilterOptional).map(toScore).filter(isCompleted).length
-            const B = b.Exercises.filter(FilterOptional).map(toScore).filter(isCompleted).length
-            return A - B
-        }
-        else if (sortBy == 'grade') {
-            const A = a.Exercises.map(toScore).filter(isCompleted)
-            const B = b.Exercises.map(toScore).filter(isCompleted)
-            const avg_A = (sum(A) / A.length)
-            const avg_B = (sum(B) / B.length)
-            return avg_A - avg_B
-        }
-        else if (sortBy == 'avg_grade_cumulative') {
-            const A = a.Exercises.map(toScore)
-            const B = b.Exercises.map(toScore)
-            const avg_A = (sum(A) / A.length)
-            const avg_B = (sum(B) / B.length)
-            return avg_A - avg_B
-        }
-        // name
-        return a.Name.charCodeAt(0) - b.Name.charCodeAt(0)
-    } else {
-        if (sortBy == 'problems') {
-            const A = a.Exercises.filter(FilterProblems).map(toScore).filter(isCompleted).length
-            const B = b.Exercises.filter(FilterProblems).map(toScore).filter(isCompleted).length
-            return B - A
-        }
-        else if (sortBy == 'assignment') {
-            const A = a.Exercises.filter(FilterAssignments).map(toScore).filter(isCompleted).length
-            const B = b.Exercises.filter(FilterAssignments).map(toScore).filter(isCompleted).length
-            return B - A
-        }
-        else if (sortBy == 'optional') {
-            const A = a.Exercises.filter(FilterOptional).map(toScore).filter(isCompleted).length
-            const B = b.Exercises.filter(FilterOptional).map(toScore).filter(isCompleted).length
-            return B - A
-        }
-        else if (sortBy == 'grade') {
-            const A = a.Exercises.map(toScore).filter(isCompleted)
-            const B = b.Exercises.map(toScore).filter(isCompleted)
-            const avg_A = (sum(A) / A.length)
-            const avg_B = (sum(B) / B.length)
-            return avg_B - avg_A
-        }
-        else if (sortBy == 'avg_grade_cumulative') {
-            const A = a.Exercises.map(toScore)
-            const B = b.Exercises.map(toScore)
-            const avg_A = (sum(A) / A.length)
-            const avg_B = (sum(B) / B.length)
-            return avg_B - avg_A
-        }
-        // name
-        return b.Name.charCodeAt(0) - a.Name.charCodeAt(0)
-    }
+const getAvg = (scores: number[]): number => scores.length ? sum(scores) / scores.length : 0
+
+const extractors: Record<SortBy, (s: Student) => number | string> = {
+    name: (s) => s.Name,
+    problems: (s) => s.Exercises.filter(FilterProblems).map(toScore).filter(isCompleted).length,
+    assignment: (s) => s.Exercises.filter(FilterAssignments).map(toScore).filter(isCompleted).length,
+    optional: (s) => s.Exercises.filter(FilterOptional).map(toScore).filter(isCompleted).length,
+    grade: (s) => getAvg(s.Exercises.map(toScore).filter(isCompleted)),
+    avg_grade_cumulative: (s) => getAvg(s.Exercises.map(toScore)),
 }
+
+const sortStudents = (sortBy: SortBy) => (dir: SortDirection) => (a: Student, b: Student) => {
+    const getValue = extractors[sortBy]
+    const valA = getValue(a)
+    const valB = getValue(b)
+
+    if (typeof valA === 'string' && typeof valB === 'string') {
+        return dir === 'ASC' ? valA.localeCompare(valB) : valB.localeCompare(valA)
+    }
+
+    return dir === 'ASC' 
+        ? (valA as number) - (valB as number) 
+        : (valB as number) - (valA as number)
+}
+
 
 
 interface StudentTableState {
