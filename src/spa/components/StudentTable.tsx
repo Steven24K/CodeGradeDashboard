@@ -1,131 +1,83 @@
-import { None, Option, Some, visitOption } from "@/utils/Option";
-import { FC, useState } from "react";
+import { FC } from "react";
+import { All } from "@/utils/Logic";
+import { Option, visitOption } from "@/utils/Option";
+import { Exercise, SortBy, SortDirection, Student } from "../App";
 
-interface Exercise {
-    Title: string
-    Score: number
-}
-interface Student {
-    Id: string
-    Name: string
-    Exercises: Exercise[]
-}
+const isProblem = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[P][0-9]+/)
+const isAssignment = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[A][0-9]+/)
+const isOptional = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[O][0-9]+/)
+const isMaster = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[M][0-9]+/)
 
-const getRows = (_raw: string): string[] => _raw.split('\r\n')
-
-const getCells = (_row: string): string[] => _row.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
-
-const sum = (n: number[]): number => n.reduce((acc, x) => acc + x, 0)
-
-const parseRows = (rows: string[]): Student[] => {
-    let header = getCells(rows.shift()!).splice(2)
-    return rows.map((row, i) => {
-        let cells = getCells(row)
-        return ({
-            Id: cells[1],
-            Name: cells[0],
-            Exercises: cells.splice(2).map<Exercise>((score, i) => ({ Title: header[i], Score: Number(score) }))
-        })
-    })
-}
-
-const FilterProblems = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[P][0-9]+/)
-const FilterAssignments = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[A][0-9]+/)
-const FilterOptional = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[O][0-9]+/)
-const FilterMaster = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[M][0-9]+/)
-
-const isCompleted = (e: Exercise): boolean => e.Score != 0 || e.Title == "A1W3A1 - Flowchart or pseudo-code" 
+const isCompleted = (e: Exercise): boolean => e.Score != 0 || e.Title == "A1W3A1 - Flowchart or pseudo-code"
 const toScore = (e: Exercise): number => e.Score
 
-type SortBy = 'name' | 'problems' | 'assignment' | 'optional' | 'grade' | 'avg_grade_cumulative'
-type SortDirection = 'ASC' | 'DESC'
-
+const sum = (n: number[]): number => n.reduce((acc, x) => acc + x, 0)
 const getAvg = (scores: number[]): number => scores.length ? sum(scores) / scores.length : 0
 
 const extractors: Record<SortBy, (s: Student) => number | string> = {
     name: (s) => s.Name,
-    problems: (s) => s.Exercises.filter(FilterProblems).filter(isCompleted).map(toScore).length,
-    assignment: (s) => s.Exercises.filter(FilterAssignments).filter(isCompleted).map(toScore).length,
-    optional: (s) => s.Exercises.filter(FilterOptional).filter(isCompleted).map(toScore).length,
+    problems: (s) => s.Exercises.filter(All(isProblem, isCompleted)).map(toScore).length,
+    assignment: (s) => s.Exercises.filter(All(isAssignment, isCompleted)).map(toScore).length,
+    optional: (s) => s.Exercises.filter(All(isOptional, isCompleted)).map(toScore).length,
     grade: (s) => getAvg(s.Exercises.filter(isCompleted).map(toScore)),
     avg_grade_cumulative: (s) => getAvg(s.Exercises.map(toScore)),
 }
 
-const sortStudents = (sortBy: SortBy) => (dir: SortDirection) => (a: Student, b: Student) => {
-    const getValue = extractors[sortBy]
-    const valA = getValue(a)
-    const valB = getValue(b)
+const sortStudents = (key: SortBy) => (dir: SortDirection) => (a: Student, b: Student) => {
+    const sortBy = extractors[key]
+    const valA = sortBy(a)
+    const valB = sortBy(b)
 
     if (typeof valA === 'string' && typeof valB === 'string') {
         return dir === 'ASC' ? valA.localeCompare(valB) : valB.localeCompare(valA)
     }
 
-    return dir === 'ASC' 
-        ? (valA as number) - (valB as number) 
+    return dir === 'ASC'
+        ? (valA as number) - (valB as number)
         : (valB as number) - (valA as number)
 }
 
-
-
-interface StudentTableState {
+interface StudentTableProps {
+    students: Student[]
     selectedStudentId: Option<string>
     sortBy: SortBy
     sortDirection: SortDirection
-}
-
-const zeroStudentTableState = (): StudentTableState => ({
-    selectedStudentId: None(),
-    sortBy: 'name',
-    sortDirection: 'ASC'
-})
-
-interface StudentTableProps {
-    content: string
+    setAndToggleSort: (key: SortBy) => void
+    toggleStudentDetails: (id: string) => void
 }
 
 export const StudentTable: FC<StudentTableProps> = props => {
-    let rows = getRows(props.content)
-    let students = parseRows(rows)
 
-    const [state, setState] = useState<StudentTableState>(zeroStudentTableState)
-
-    const toggleStudentDetails = (id: string) => (s: StudentTableState): StudentTableState =>
-        visitOption<string, StudentTableState>(v => ({ ...s, selectedStudentId: v == id ? None() : Some(id) }))
-            (() => ({ ...s, selectedStudentId: Some(id) }))
-            (s.selectedStudentId)
-
-    const setAndToggleSort = (_sortBy: SortBy) => (s: StudentTableState): StudentTableState =>
-        ({ ...s, sortBy: _sortBy, sortDirection: s.sortDirection == 'ASC' ? 'DESC' : 'ASC' })
 
     return <table className="main-table">
         <thead className="main-table__head">
             <tr className="main-table__header-row">
                 <th className="main-table__header-cell">Id</th>
-                <th className="main-table__header-cell cursor-pointer" onClick={() => setState(setAndToggleSort('name'))}>Name</th>
-                <th className="main-table__header-cell cursor-pointer" onClick={() => setState(setAndToggleSort('problems'))}>Problem Count</th>
-                <th className="main-table__header-cell cursor-pointer" onClick={() => setState(setAndToggleSort('assignment'))}>Assignment Count</th>
-                <th className="main-table__header-cell cursor-pointer" onClick={() => setState(setAndToggleSort('optional'))}>Optional</th>
+                <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('name')}>Name</th>
+                <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('problems')}>Problem Count</th>
+                <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('assignment')}>Assignment Count</th>
+                <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('optional')}>Optional</th>
                 <th className="main-table__header-cell">Master Assignment</th>
-                <th className="main-table__header-cell cursor-pointer" onClick={() => setState(setAndToggleSort('grade'))}>Avg. Grade</th>
-                <th className="main-table__header-cell cursor-pointer" onClick={() => setState(setAndToggleSort('avg_grade_cumulative'))}>Avg. Grade cumulative</th>
+                <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('grade')}>Avg. Grade</th>
+                <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('avg_grade_cumulative')}>Avg. Grade cumulative</th>
             </tr>
         </thead>
         <tbody className="main-table__body">
-            {students
-                .sort(sortStudents(state.sortBy)(state.sortDirection))
+            {props.students
+                .sort(sortStudents(props.sortBy)(props.sortDirection))
                 .map(student => {
                     const exercises = student.Exercises
 
-                    const problems = exercises.filter(FilterProblems)
+                    const problems = exercises.filter(isProblem)
                     const problemsCompleted = problems.filter(isCompleted).map(toScore)
 
-                    const assigmnents = exercises.filter(FilterAssignments)
+                    const assigmnents = exercises.filter(isAssignment)
                     const assigments_completed = assigmnents.filter(isCompleted).map(toScore)
 
-                    const optional = exercises.filter(FilterOptional)
+                    const optional = exercises.filter(isOptional)
                     const optionalCompleted = optional.filter(isCompleted).map(toScore)
 
-                    const master = exercises.filter(FilterMaster)
+                    const master = exercises.filter(isMaster)
                     const masterCompleted = master.filter(isCompleted).map(toScore)
                     const masterCheck = masterCompleted.length == master.length ? "yes" : "no"
 
@@ -134,9 +86,9 @@ export const StudentTable: FC<StudentTableProps> = props => {
                     const avg_grade = getAvg(exercisesCompleted).toFixed(1)
                     const avg_grade_cumulative = getAvg(allScores).toFixed(1)
 
-                    const showDetails = visitOption<string, boolean>(v => v == student.Id)(() => false)(state.selectedStudentId)
+                    const showDetails = visitOption<string, boolean>(v => v == student.Id)(() => false)(props.selectedStudentId)
 
-                    return <tr onClick={() => setState(toggleStudentDetails(student.Id))} key={student.Id} className="main-table__row cursor-pointer">
+                    return <tr onClick={() => props.toggleStudentDetails(student.Id)} key={student.Id} className="main-table__row cursor-pointer">
                         <td className="main-table__cell main-table__cell--id">{student.Id}</td>
                         <td className="main-table__cell main-table__cell--name">{student.Name}</td>
                         <td className="main-table__cell main-table__cell--score">{problemsCompleted.length}/{problems.length}</td>
