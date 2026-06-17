@@ -9,6 +9,7 @@ const isOptional = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[O][0-9]+/)
 const isMaster = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[M][0-9]+/)
 
 const isCompleted = (e: Exercise): boolean => e.Score != 0 || e.Title == "A1W3A1 - Flowchart or pseudo-code"
+const isGradeSufficient = (e: Exercise): Boolean => e.Score >= 5.5
 const toScore = (e: Exercise): number => e.Score
 
 const sum = (n: number[]): number => n.reduce((acc, x) => acc + x, 0)
@@ -78,7 +79,7 @@ export const StudentTable: FC<StudentTableProps> = props => {
                     const optionalCompleted = optional.filter(isCompleted).map(toScore)
 
                     const master = exercises.filter(isMaster)
-                    const masterCompleted = master.filter(isCompleted).map(toScore)
+                    const masterCompleted = master.filter(All(isCompleted, isGradeSufficient)).map(toScore)
                     const masterCheck = masterCompleted.length == master.length ? "yes" : "no"
 
                     const allScores = exercises.map(toScore)
@@ -104,7 +105,7 @@ export const StudentTable: FC<StudentTableProps> = props => {
                                 <li><b>Assignments:</b> {assigments_completed.length}/{assigmnents.length}</li>
                                 <li><b>Problems:</b> {problemsCompleted.length}/{problems.length}</li>
                                 <li><b>Optional:</b> {optionalCompleted.length}/{optional.length}</li>
-                                <li><b>Master Assignment:</b> {masterCheck}</li>
+                                <li><b>Master Assignment:</b> {masterCheck}(master[0]?.Score)</li>
                                 <li><b>Avg. Grade:</b> {avg_grade}</li>
                                 <li><b>Avg. Grade cumulative:</b> {avg_grade_cumulative}</li>
                             </ul>
