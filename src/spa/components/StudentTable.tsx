@@ -9,7 +9,7 @@ const isOptional = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[O][0-9]+/)
 const isMaster = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[M][0-9]+/)
 
 const isCompleted = (e: Exercise): boolean => e.Score != 0 || e.Title == "A1W3A1 - Flowchart or pseudo-code"
-const isGradeSufficient = (e: Exercise): Boolean => e.Score >= 5.5
+const isGradeSufficient = (e: Exercise): boolean => e.Score >= 5.5
 const toScore = (e: Exercise): number => e.Score
 
 const sum = (n: number[]): number => n.reduce((acc, x) => acc + x, 0)
