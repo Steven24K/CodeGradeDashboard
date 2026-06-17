@@ -95,7 +95,7 @@ export const StudentTable: FC<StudentTableProps> = props => {
                         <td className="main-table__cell main-table__cell--score">{problemsCompleted.length}/{problems.length}</td>
                         <td className="main-table__cell main-table__cell--score">{assigments_completed.length}/{assigmnents.length}</td>
                         <td className="main-table__cell main-table__cell--score">{optionalCompleted.length}/{optional.length}</td>
-                        <td className="main-table__cell main-table__cell--score">{masterCheck}({master[0]?.Score})</td>
+                        <td className="main-table__cell main-table__cell--score">{masterCheck}({master[0]?.Score.toFixed(1)})</td>
                         <td className="main-table__cell main-table__cell--score">{avg_grade}</td>
                         <td className="main-table__cell main-table__cell--score">{avg_grade_cumulative}</td>
                         {showDetails && <td className="absolute top-0 left-0 bg-white w-full">
@@ -105,7 +105,7 @@ export const StudentTable: FC<StudentTableProps> = props => {
                                 <li><b>Assignments:</b> {assigments_completed.length}/{assigmnents.length}</li>
                                 <li><b>Problems:</b> {problemsCompleted.length}/{problems.length}</li>
                                 <li><b>Optional:</b> {optionalCompleted.length}/{optional.length}</li>
-                                <li><b>Master Assignment:</b> {masterCheck}({master[0]?.Score})</li>
+                                <li><b>Master Assignment:</b> {masterCheck}({master[0]?.Score.toFixed(1)})</li>
                                 <li><b>Avg. Grade:</b> {avg_grade}</li>
                                 <li><b>Avg. Grade cumulative:</b> {avg_grade_cumulative}</li>
                             </ul>
