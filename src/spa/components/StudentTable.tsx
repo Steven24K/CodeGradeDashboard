@@ -16,12 +16,13 @@ const sum = (n: number[]): number => n.reduce((acc, x) => acc + x, 0)
 const getAvg = (scores: number[]): number => scores.length ? sum(scores) / scores.length : 0
 
 const extractors: Record<SortBy, (s: Student) => number | string> = {
-    name: (s) => s.Name,
-    problems: (s) => s.Exercises.filter(All(isProblem, isCompleted)).map(toScore).length,
-    assignment: (s) => s.Exercises.filter(All(isAssignment, isCompleted)).map(toScore).length,
-    optional: (s) => s.Exercises.filter(All(isOptional, isCompleted)).map(toScore).length,
-    grade: (s) => getAvg(s.Exercises.filter(isCompleted).map(toScore)),
-    avg_grade_cumulative: (s) => getAvg(s.Exercises.map(toScore)),
+    name: (s: Student) => s.Name,
+    problems: (s: Student) => s.Exercises.filter(All(isProblem, isCompleted)).map(toScore).length,
+    assignment: (s: Student) => s.Exercises.filter(All(isAssignment, isCompleted)).map(toScore).length,
+    optional: (s: Student) => s.Exercises.filter(All(isOptional, isCompleted)).map(toScore).length,
+    master_grade: (s: Student) => s.Exercises.filter(isMaster)[0].Score,
+    grade: (s: Student) => getAvg(s.Exercises.filter(isCompleted).map(toScore)),
+    avg_grade_cumulative: (s: Student) => getAvg(s.Exercises.map(toScore)),
 }
 
 const sortStudents = (key: SortBy) => (dir: SortDirection) => (a: Student, b: Student) => {
@@ -58,7 +59,7 @@ export const StudentTable: FC<StudentTableProps> = props => {
                 <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('problems')}>Problem Count</th>
                 <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('assignment')}>Assignment Count</th>
                 <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('optional')}>Optional</th>
-                <th className="main-table__header-cell">Master Assignment</th>
+                <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('master_grade')}>Master Assignment</th>
                 <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('grade')}>Avg. Grade</th>
                 <th className="main-table__header-cell cursor-pointer" onClick={() => props.setAndToggleSort('avg_grade_cumulative')}>Avg. Grade cumulative</th>
             </tr>

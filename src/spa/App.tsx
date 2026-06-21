@@ -19,7 +19,7 @@ type FileState =
     { kind: 'raw', content: string } |
     { kind: 'parsed', students: Student[] }
 
-export type SortBy = 'name' | 'problems' | 'assignment' | 'optional' | 'grade' | 'avg_grade_cumulative'
+export type SortBy = 'name' | 'problems' | 'assignment' | 'optional' | 'master_grade' | 'grade' | 'avg_grade_cumulative'
 export type SortDirection = 'ASC' | 'DESC'
 export interface AppState {
     data: FileState
