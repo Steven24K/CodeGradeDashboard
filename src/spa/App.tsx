@@ -3,10 +3,11 @@ import { useState } from "react"
 import { Option, None, Some, visitOption } from "@/utils/Option"
 import { FileInput } from "./components/FileInput"
 import { StudentTable } from "./components/StudentTable"
+import { Either, Left, Right } from "@/utils/Either"
 
 export interface Exercise {
     Title: string
-    Score: number
+    Score: Either<string, number>
 }
 export interface Student {
     Id: string
@@ -46,7 +47,7 @@ const parseRows = (rows: string[]): Student[] => {
         return ({
             Id: cells[1],
             Name: cells[0],
-            Exercises: cells.splice(2).map<Exercise>((score, i) => ({ Title: header[i], Score: Number(score) }))
+            Exercises: cells.splice(2).map<Exercise>((score, i) => ({ Title: header[i], Score: score == '' ? Left(score) : Right(Number(score))  }))
         })
     })
 }

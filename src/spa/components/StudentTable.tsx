@@ -8,9 +8,13 @@ const isAssignment = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[A][0-9]+
 const isOptional = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[O][0-9]+/)
 const isMaster = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[M][0-9]+/)
 
-const isCompleted = (e: Exercise): boolean => e.Score != 0 || e.Title == "A1W3A1 - Flowchart or pseudo-code"
-const isGradeSufficient = (e: Exercise): boolean => e.Score >= 5.5
-const toScore = (e: Exercise): number => e.Score
+const isExcluded = (e: Exercise) => ["A1W3A1 - Flowchart or pseudo-code"].includes(e.Title)
+
+const isCompleted = (e: Exercise): boolean => e.Score.kind == 'right' || isExcluded(e)
+const isGradeSufficient = (e: Exercise): boolean => (e.Score.kind == 'right' && e.Score.v >= 5.5) || isExcluded(e)
+const toScore = (e: Exercise): number => e.Score.kind == 'right' ? e.Score.v : 0
+
+const printScore = (e: Exercise): string => e.Score.kind == 'right' ? e.Score.v.toFixed(1) : '-'
 
 const sum = (n: number[]): number => n.reduce((acc, x) => acc + x, 0)
 const getAvg = (scores: number[]): number => scores.length ? sum(scores) / scores.length : 0
@@ -20,7 +24,7 @@ const extractors: Record<SortBy, (s: Student) => number | string> = {
     problems: (s: Student) => s.Exercises.filter(All(isProblem, isCompleted)).map(toScore).length,
     assignment: (s: Student) => s.Exercises.filter(All(isAssignment, isCompleted)).map(toScore).length,
     optional: (s: Student) => s.Exercises.filter(All(isOptional, isCompleted)).map(toScore).length,
-    master_grade: (s: Student) => s.Exercises.filter(isMaster)[0].Score,
+    master_grade: (s: Student) => s.Exercises.find(isMaster)!.Score.v,
     grade: (s: Student) => getAvg(s.Exercises.filter(isCompleted).map(toScore)),
     avg_grade_cumulative: (s: Student) => getAvg(s.Exercises.map(toScore)),
 }
@@ -48,10 +52,8 @@ interface StudentTableProps {
     toggleStudentDetails: (id: string) => void
 }
 
-export const StudentTable: FC<StudentTableProps> = props => {
-
-
-    return <table className="main-table">
+export const StudentTable: FC<StudentTableProps> = props =>
+    <table className="main-table">
         <thead className="main-table__head">
             <tr className="main-table__header-row">
                 <th className="main-table__header-cell">Id</th>
@@ -79,9 +81,8 @@ export const StudentTable: FC<StudentTableProps> = props => {
                     const optional = exercises.filter(isOptional)
                     const optionalCompleted = optional.filter(isCompleted).map(toScore)
 
-                    const master = exercises.filter(isMaster)
-                    const masterCompleted = master.filter(All(isCompleted, isGradeSufficient)).map(toScore)
-                    const masterCheck = masterCompleted.length == master.length ? "✅" : "❌"
+                    const master = exercises.find(isMaster)!
+                    const masterCheck = isGradeSufficient(master) ? "✅" : "❌"
 
                     const allScores = exercises.map(toScore)
                     const exercisesCompleted = exercises.filter(isCompleted).map(toScore)
@@ -96,7 +97,7 @@ export const StudentTable: FC<StudentTableProps> = props => {
                         <td className="main-table__cell main-table__cell--score">{problemsCompleted.length}/{problems.length}</td>
                         <td className="main-table__cell main-table__cell--score">{assigments_completed.length}/{assigmnents.length}</td>
                         <td className="main-table__cell main-table__cell--score">{optionalCompleted.length}/{optional.length}</td>
-                        <td className="main-table__cell main-table__cell--score">{masterCheck}({master[0]?.Score.toFixed(1)})</td>
+                        <td className="main-table__cell main-table__cell--score">{masterCheck}({printScore(master)})</td>
                         <td className="main-table__cell main-table__cell--score">{avg_grade}</td>
                         <td className="main-table__cell main-table__cell--score">{avg_grade_cumulative}</td>
                         {showDetails && <td className="absolute top-0 left-0 bg-white w-full">
@@ -106,7 +107,7 @@ export const StudentTable: FC<StudentTableProps> = props => {
                                 <li><b>Assignments:</b> {assigments_completed.length}/{assigmnents.length}</li>
                                 <li><b>Problems:</b> {problemsCompleted.length}/{problems.length}</li>
                                 <li><b>Optional:</b> {optionalCompleted.length}/{optional.length}</li>
-                                <li><b>Master Assignment:</b> {masterCheck}({master[0]?.Score.toFixed(1)})</li>
+                                <li><b>Master Assignment:</b> {masterCheck}({printScore(master)})</li>
                                 <li><b>Avg. Grade:</b> {avg_grade}</li>
                                 <li><b>Avg. Grade cumulative:</b> {avg_grade_cumulative}</li>
                             </ul>
@@ -114,8 +115,8 @@ export const StudentTable: FC<StudentTableProps> = props => {
                                 {
                                     student.Exercises
                                         .map(e =>
-                                            <li key={e.Title} className={`p-2 my-2 border-2 ${e.Score < 5.5 ? 'border-red-800' : 'border-green-600'}`}>
-                                                <b>{e.Title}:</b> {e.Score > 0 && !e.Title.startsWith("A1W3A1") ? e.Score.toFixed(1) : "-"}
+                                            <li key={e.Title} className={`p-2 my-2 border-2 ${!isCompleted(e) && 'opacity-30'} ${isGradeSufficient(e) ? 'border-green-600' : 'border-red-600'}`}>
+                                                <b>{e.Title}:</b> {isCompleted(e) ? printScore(e) : "-"}
                                             </li>)
                                 }
                             </ul>
@@ -124,4 +125,3 @@ export const StudentTable: FC<StudentTableProps> = props => {
                 })}
         </tbody>
     </table>
-}
