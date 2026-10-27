@@ -8,10 +8,8 @@ const isAssignment = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[A][0-9]+
 const isOptional = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[O][0-9]+/)
 const isMaster = (e: Exercise) => e.Title.match(/^([A])[0-9]W[0-9]+[M][0-9]+/)
 
-const isExcluded = (e: Exercise) => ["A1W3A1 - Flowchart or pseudo-code"].includes(e.Title)
-
-const isCompleted = (e: Exercise): boolean => e.Score.kind == 'right' || isExcluded(e)
-const isGradeSufficient = (e: Exercise): boolean => (e.Score.kind == 'right' && e.Score.v >= 5.5) || isExcluded(e)
+const isCompleted = (e: Exercise): boolean => e.Score.kind == 'right'
+const isGradeSufficient = (e: Exercise): boolean => (e.Score.kind == 'right' && e.Score.v >= 5.5)
 const toScore = (e: Exercise): number => e.Score.kind == 'right' ? e.Score.v : 0
 
 const printScore = (e: Exercise): string => e.Score.kind == 'right' ? e.Score.v.toFixed(1) : '-'
