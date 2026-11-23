@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import "./globals.scss";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CodeGrade Dashboard",
-  description: "Statistics for CodeGrade",
+  title: "Gradeboard | CodeGrade progress",
+  description: "A private, at-a-glance view of CodeGrade student progress.",
 };
 
 export default function RootLayout({
@@ -23,11 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }

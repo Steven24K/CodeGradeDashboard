@@ -1,10 +1,17 @@
-# CodeGradeDashboard
-Static site hosted on Github Pages: 
+# CodeGrade Dashboard
+
+The CSV dashboard runs entirely in the browser: student data is not uploaded.
+The API view at `/api` is a separate detailed-view scaffold; it does not connect
+to CodeGrade yet.
+
+Static site hosted on GitHub Pages:
 [Visit Dashboard](https://stevenkoerts.nl/CodeGradeDashboard/)
 
 ## Manual 
 1. Download Gradebook from CodeGrade.
-2. Drag it into the browser. 
+2. Open the CSV dashboard and choose the downloaded CSV file.
+3. Use the leaderboard to compare progress, check assessment eligibility, and
+   expand a student for exercise details.
 
 ## Privacy Statement
 All data stays in the browser, everything in this dashboard is client side
