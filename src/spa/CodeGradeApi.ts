@@ -1,8 +1,26 @@
-import { Exercise, Student } from "./Model";
+import {
+  CodeGradeAssignment,
+  CodeGradeGradebook,
+  Exercise,
+  Student,
+} from "./Model";
 
 export interface CodeGradeCourse {
   id: string;
   name: string;
+}
+
+export interface CodeGradeSubmission {
+  id: string;
+  createdAt: string;
+  grade: number | null;
+  deadline: string | null;
+  lockDate: string | null;
+}
+
+export interface AssignmentSubmissions {
+  assignment: CodeGradeCourse;
+  submissions: CodeGradeSubmission[];
 }
 
 export class CodeGradeApiError extends Error {
@@ -17,8 +35,8 @@ export class CodeGradeApiError extends Error {
 
 const requestLocalApi = async (
   path: string,
-  token: string,
   signal: AbortSignal,
+  options: { method?: "GET" | "POST" | "DELETE"; body?: unknown } = {},
 ): Promise<unknown> => {
   let response: Response;
 
@@ -26,8 +44,15 @@ const requestLocalApi = async (
     response = await fetch(path, {
       headers: {
         Accept: "application/json",
-        Authorization: `Bearer ${token}`,
+        ...(options.body === undefined
+          ? {}
+          : { "Content-Type": "application/json" }),
       },
+      method: options.method ?? "GET",
+      ...(options.body === undefined
+        ? {}
+        : { body: JSON.stringify(options.body) }),
+      credentials: "same-origin",
       signal,
       cache: "no-store",
     });
@@ -108,12 +133,10 @@ const isExercise = (value: unknown): value is Exercise => {
 };
 
 export const fetchCourses = async (
-  token: string,
   signal: AbortSignal,
 ): Promise<CodeGradeCourse[]> => {
   const payload = await requestLocalApi(
     "/api/codegrade/courses",
-    token,
     signal,
   );
   if (!Array.isArray(payload) || !payload.every(isCourse)) {
@@ -124,20 +147,107 @@ export const fetchCourses = async (
   return payload;
 };
 
-export const fetchCourseStudents = async (
-  courseId: string,
+const isAssignment = (value: unknown): value is CodeGradeAssignment =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  typeof value.id === "string" &&
+  "name" in value &&
+  typeof value.name === "string";
+
+export const connectCodeGrade = async (
   token: string,
   signal: AbortSignal,
-): Promise<Student[]> => {
+): Promise<CodeGradeCourse[]> => {
   const payload = await requestLocalApi(
-    `/api/codegrade/courses/${encodeURIComponent(courseId)}/gradebook`,
-    token,
+    "/api/codegrade/session",
     signal,
+    { method: "POST", body: { token } },
   );
-  if (!Array.isArray(payload) || !payload.every(isStudent)) {
+  if (!Array.isArray(payload) || !payload.every(isCourse)) {
     throw new CodeGradeApiError(
-      "The local CodeGrade service returned an invalid gradebook.",
+      "The local CodeGrade service returned an invalid courses list.",
     );
   }
   return payload;
 };
+
+export const disconnectCodeGrade = async (
+  signal: AbortSignal,
+): Promise<void> => {
+  await requestLocalApi("/api/codegrade/session", signal, {
+    method: "DELETE",
+  });
+};
+
+export const fetchCourseGradebook = async (
+  courseId: string,
+  signal: AbortSignal,
+): Promise<CodeGradeGradebook> => {
+  const payload = await requestLocalApi(
+    `/api/codegrade/courses/${encodeURIComponent(courseId)}/gradebook`,
+    signal,
+  );
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("assignments" in payload) ||
+    !Array.isArray(payload.assignments) ||
+    !payload.assignments.every(isAssignment) ||
+    !("students" in payload) ||
+    !Array.isArray(payload.students) ||
+    !payload.students.every(isStudent)
+  ) {
+    throw new CodeGradeApiError(
+      "The local CodeGrade service returned an invalid gradebook.",
+    );
+  }
+  return {
+    assignments: payload.assignments,
+    students: payload.students,
+  };
+};
+
+export const fetchStudentSubmissions = async (
+  courseId: string,
+  studentId: string,
+  assignments: CodeGradeAssignment[],
+  signal: AbortSignal,
+): Promise<AssignmentSubmissions[]> => {
+  const payload = await requestLocalApi(
+    `/api/codegrade/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(studentId)}/submissions`,
+    signal,
+    { method: "POST", body: { assignments } },
+  );
+  if (!Array.isArray(payload) || !payload.every(isAssignmentSubmissions)) {
+    throw new CodeGradeApiError(
+      "The local CodeGrade service returned invalid submission data.",
+    );
+  }
+  return payload;
+};
+
+const isAssignmentSubmissions = (
+  value: unknown,
+): value is AssignmentSubmissions =>
+  typeof value === "object" &&
+  value !== null &&
+  "assignment" in value &&
+  isCourse(value.assignment) &&
+  "submissions" in value &&
+  Array.isArray(value.submissions) &&
+  value.submissions.every(isSubmission);
+
+const isSubmission = (value: unknown): value is CodeGradeSubmission =>
+  typeof value === "object" &&
+  value !== null &&
+  "id" in value &&
+  typeof value.id === "string" &&
+  "createdAt" in value &&
+  typeof value.createdAt === "string" &&
+  "grade" in value &&
+  (typeof value.grade === "number" || value.grade === null) &&
+  "deadline" in value &&
+  (typeof value.deadline === "string" || value.deadline === null) &&
+  "lockDate" in value &&
+  (typeof value.lockDate === "string" || value.lockDate === null);

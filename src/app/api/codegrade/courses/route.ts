@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
   try {
-    const token = getBearerToken(request);
+    const token = await getBearerToken();
     const courses = await getCourses(request, token);
     return Response.json(courses, {
       headers: { "Cache-Control": "no-store" },

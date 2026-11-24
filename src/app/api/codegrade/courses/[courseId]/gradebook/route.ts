@@ -23,7 +23,7 @@ export async function GET(
       );
     }
 
-    const token = getBearerToken(request);
+    const token = await getBearerToken();
     const gradebook = await getCourseGradebook(request, token, courseId);
     return Response.json(gradebook, {
       headers: { "Cache-Control": "no-store" },

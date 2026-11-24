@@ -13,9 +13,22 @@ export interface Student {
   CodeGradeId?: string;
 }
 
+export interface CodeGradeAssignment {
+  id: string;
+  name: string;
+}
+
+export interface CodeGradeGradebook {
+  assignments: CodeGradeAssignment[];
+  students: Student[];
+}
+
+export type TimeGrouping = "hour" | "day" | "week" | "month";
+
 export type SortBy =
   | "name"
   | "completedAssignments"
+  | "completedChallenges"
   | "completedProblems"
   | "completedOptional"
   | "masterGrade"
@@ -87,6 +100,7 @@ export const SORT_OPTIONS: { key: SortBy; label: string }[] = [
   { key: "cumulativeGrade", label: "Cumulative grade" },
   { key: "masterGrade", label: "Master assignment grade" },
   { key: "completedAssignments", label: "Assignments completed" },
+  { key: "completedChallenges", label: "Challenges completed" },
   { key: "completedProblems", label: "Problems completed" },
   { key: "completedOptional", label: "Optional tasks completed" },
   { key: "completion", label: "Required work completion" },
@@ -101,8 +115,10 @@ export const isOptional = (exercise: Exercise): boolean =>
   /^A\dW\d+O\d+/.test(exercise.Title);
 export const isMaster = (exercise: Exercise): boolean =>
   /^A\dW\d+M\d+/.test(exercise.Title);
+export const isChallenge = (exercise: Exercise): boolean =>
+  /^A\dW\d+C(?:\s|$)/.test(exercise.Title);
 export const isAssignmentTask = (exercise: Exercise): boolean =>
-  Boolean(Any(isAssignment, isMaster)(exercise));
+  Boolean(Any(isAssignment, isMaster, isChallenge)(exercise));
 export const isProblemTask = (exercise: Exercise): boolean =>
   !isAssignmentTask(exercise);
 export const isCompleted = (exercise: Exercise): boolean =>
@@ -119,12 +135,15 @@ export const hasPassingAssignments = (student: Student): boolean =>
   student.Exercises.filter(isAssignment).every(isGradeSufficient);
 export const hasPassingMasterAssignment = (student: Student): boolean =>
   student.Exercises.some(All(isMaster, isGradeSufficient));
+export const hasCompletedChallenges = (student: Student): boolean =>
+  student.Exercises.filter(isChallenge).every(isCompleted);
 export const isEligible = (student: Student): boolean =>
   Boolean(
     All(
       hasMasterAssignment,
       hasPassingAssignments,
       hasPassingMasterAssignment,
+      hasCompletedChallenges,
     )(student),
   );
 
@@ -138,6 +157,8 @@ export const cumulativeGrade = (student: Student): number =>
 export interface StudentMetrics {
   completedAssignments: number;
   totalAssignments: number;
+  completedChallenges: number;
+  totalChallenges: number;
   completedProblems: number;
   totalProblems: number;
   completedOptional: number;
@@ -153,6 +174,7 @@ export interface StudentMetrics {
 
 export const getStudentMetrics = (student: Student): StudentMetrics => {
   const assignments = student.Exercises.filter(isAssignment);
+  const challenges = student.Exercises.filter(isChallenge);
   const problems = student.Exercises.filter(isProblem);
   const optional = student.Exercises.filter(isOptional);
   const required = student.Exercises.filter((exercise) => !isOptional(exercise));
@@ -162,6 +184,8 @@ export const getStudentMetrics = (student: Student): StudentMetrics => {
   return {
     completedAssignments: assignments.filter(isCompleted).length,
     totalAssignments: assignments.length,
+    completedChallenges: challenges.filter(isCompleted).length,
+    totalChallenges: challenges.length,
     completedProblems: problems.filter(isCompleted).length,
     totalProblems: problems.length,
     completedOptional: optional.filter(isCompleted).length,
@@ -181,6 +205,7 @@ export const getStudentMetrics = (student: Student): StudentMetrics => {
 const sortValues: Record<SortBy, (student: Student) => number | string> = {
   name: (student) => student.Name.toLocaleLowerCase(),
   completedAssignments: (student) => getStudentMetrics(student).completedAssignments,
+  completedChallenges: (student) => getStudentMetrics(student).completedChallenges,
   completedProblems: (student) => getStudentMetrics(student).completedProblems,
   completedOptional: (student) => getStudentMetrics(student).completedOptional,
   masterGrade: (student) => getStudentMetrics(student).masterGrade,

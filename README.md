@@ -2,9 +2,10 @@
 
 The CSV dashboard is a client-side SPA: CSV files are parsed in the browser and
 are not uploaded. The `/api` view uses local Next.js server routes to fetch
-CodeGrade courses, assignments, and grades. Its bearer token stays in page
-memory and is forwarded to the local server; it is not saved to cookies or
-local storage.
+CodeGrade courses, assignments, and grades. The bearer token is validated by
+the local server before being stored in an HttpOnly, SameSite=Lax cookie for
+eight hours (Secure in production). The cookie is not readable by browser
+JavaScript; API requests use it only to authenticate with the local server.
 
 Static site hosted on GitHub Pages:
 [Visit Dashboard](https://stevenkoerts.nl/CodeGradeDashboard/)
@@ -12,6 +13,21 @@ Static site hosted on GitHub Pages:
 The CodeGrade API view requires the local Next.js server and is not available
 from GitHub Pages. The workflow now builds and type-checks the server app; it
 does not publish a static export.
+
+The API flow is split into pages: `/api` connects with a bearer token,
+`/api/courses` lists courses, `/api/courses/<course-id>/<course-name>` shows
+the course gradebook, and its `/students/<internal-user-id>` route shows a
+student's submission activity. The detail page fetches submissions
+sequentially for each course assignment using the student's internal CodeGrade
+user ID. Assessment eligibility requires every assignment and master
+assignment to have a grade of at least 5.5, and any Challenge exercise must be
+completed. Course assignments and gradebook data are cached in shared app state
+and reused on the student detail page, so it does not fetch assignment pages
+again. Student submissions are also cached until explicitly reloaded. The
+app state is in memory and resets on a full page refresh, while the cookie
+persists until it expires or the user disconnects. The page shows a status
+board, submission counts grouped by hour/day/week/month, a year activity
+heatmap, and a submission timeline.
 
 ## Manual 
 1. Download Gradebook from CodeGrade.
@@ -25,7 +41,8 @@ does not publish a static export.
 
 ## Privacy Statement
 CSV data stays in the browser and is evaluated locally. API mode sends the
-bearer token from the browser to the local Next.js server, which forwards API
+bearer token once to the local Next.js server for validation. Subsequent
+requests use the HttpOnly cookie, and the local server forwards authorized
 requests to CodeGrade. Use the API view only on a trusted local machine.
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).

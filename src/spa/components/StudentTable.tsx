@@ -1,4 +1,5 @@
 import { Dispatch, FC, SetStateAction } from "react";
+import Link from "next/link";
 import {
   AppState,
   Exercise,
@@ -8,6 +9,7 @@ import {
   SORT_OPTIONS,
   getStudentMetrics,
   isAssignmentTask,
+  isChallenge,
   isCompleted,
   isProblemTask,
   initialFilters,
@@ -15,6 +17,7 @@ import {
   scoreOf,
   sortValue,
 } from "../Model";
+import { ExternalLink } from "./ApiNavigation";
 
 type FilterKey = keyof StudentFilters;
 type ExerciseColumnKey =
@@ -111,6 +114,9 @@ interface StudentTableProps {
   state: AppState;
   setState: Dispatch<SetStateAction<AppState>>;
   source?: string;
+  studentHref?: (student: Student) => string | null;
+  exerciseHref?: (exercise: Exercise) => string | null;
+  onChangeGradebook?: () => void;
 }
 
 interface SortHeaderProps {
@@ -160,6 +166,9 @@ export const StudentTable: FC<StudentTableProps> = ({
   state,
   setState,
   source = "CSV report",
+  studentHref,
+  exerciseHref,
+  onChangeGradebook,
 }) => {
   const students = state.students ?? [];
   const visibleStudents = students
@@ -195,19 +204,25 @@ export const StudentTable: FC<StudentTableProps> = ({
     }));
   };
 
-  const closeDashboard = () => setState((current) => ({
-    ...current,
-    students: null,
-    error: "",
-    studentSearch: "",
-    filtersOpen: false,
-    filters: initialFilters(),
-    sortBy: "averageGrade",
-    sortDirection: "DESC",
-    selectedStudentId: null,
-    exerciseSearch: "",
-    completedExercisesOnly: false,
-  }));
+  const closeDashboard = () => {
+    if (onChangeGradebook) {
+      onChangeGradebook();
+      return;
+    }
+    setState((current) => ({
+      ...current,
+      students: null,
+      error: "",
+      studentSearch: "",
+      filtersOpen: false,
+      filters: initialFilters(),
+      sortBy: "averageGrade",
+      sortDirection: "DESC",
+      selectedStudentId: null,
+      exerciseSearch: "",
+      completedExercisesOnly: false,
+    }));
+  };
 
   return (
     <>
@@ -480,11 +495,12 @@ export const StudentTable: FC<StudentTableProps> = ({
                 <SortHeader label="Student" sortBy="name" state={state} setState={setState} />
                 <SortHeader label="Required progress" sortBy="completion" state={state} setState={setState} />
                 <SortHeader label="Assignments" sortBy="completedAssignments" state={state} setState={setState} />
+                <SortHeader label="Challenge" sortBy="completedChallenges" state={state} setState={setState} />
                 <SortHeader label="Problems" sortBy="completedProblems" state={state} setState={setState} />
                 <SortHeader label="Optional" sortBy="completedOptional" state={state} setState={setState} />
-                <SortHeader label="Master assignment" sortBy="masterGrade" state={state} setState={setState} />
-                <SortHeader label="Average grade" sortBy="averageGrade" state={state} setState={setState} />
-                <SortHeader label="Assessment" sortBy="eligibility" state={state} setState={setState} />
+                <SortHeader label="Master" sortBy="masterGrade" state={state} setState={setState} />
+                <SortHeader label="Avg. grade" sortBy="averageGrade" state={state} setState={setState} />
+                <SortHeader label="Go" sortBy="eligibility" state={state} setState={setState} />
                 <th scope="col">
                   <span className="visually-hidden">Details</span>
                 </th>
@@ -497,11 +513,13 @@ export const StudentTable: FC<StudentTableProps> = ({
                   student={student}
                   state={state}
                   setState={setState}
+                  href={studentHref?.(student) ?? null}
+                  exerciseHref={exerciseHref}
                 />
               ))}
               {visibleStudents.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="table-empty">
+                  <td colSpan={10} className="table-empty">
                     No students match the current search and filters.
                   </td>
                 </tr>
@@ -512,7 +530,7 @@ export const StudentTable: FC<StudentTableProps> = ({
         <div className="dashboard-footer">
           <span>
             Eligible students have every assignment and the master assignment
-            graded 5.5 or higher.
+            graded 5.5 or higher, and any Challenge exercise completed.
           </span>
           <span>
             {source === "CSV report"
@@ -563,9 +581,17 @@ interface StudentRowProps {
   student: Student;
   state: AppState;
   setState: Dispatch<SetStateAction<AppState>>;
+  href: string | null;
+  exerciseHref?: (exercise: Exercise) => string | null;
 }
 
-const StudentRow: FC<StudentRowProps> = ({ student, state, setState }) => {
+const StudentRow: FC<StudentRowProps> = ({
+  student,
+  state,
+  setState,
+  href,
+  exerciseHref,
+}) => {
   const metrics = getStudentMetrics(student);
   const expanded = state.selectedStudentId === student.Id;
 
@@ -578,9 +604,18 @@ const StudentRow: FC<StudentRowProps> = ({ student, state, setState }) => {
               {getInitials(student.Name)}
             </span>
             <span className="student-name__text">
-              <span className="student-name__primary">
-                {student.Name || "Unnamed student"}
-              </span>
+              {href ? (
+                <Link
+                  className="student-name__link"
+                  href={href}
+                >
+                  {student.Name || "Unnamed student"}
+                </Link>
+              ) : (
+                <span className="student-name__primary">
+                  {student.Name || "Unnamed student"}
+                </span>
+              )}
               <span className="student-name__secondary">ID {student.Id}</span>
             </span>
           </div>
@@ -610,6 +645,9 @@ const StudentRow: FC<StudentRowProps> = ({ student, state, setState }) => {
         </td>
         <td className="count-cell">
           {metrics.completedAssignments}/{metrics.totalAssignments}
+        </td>
+        <td className="count-cell">
+          {metrics.completedChallenges}/{metrics.totalChallenges}
         </td>
         <td className="count-cell">
           {metrics.completedProblems}/{metrics.totalProblems}
@@ -648,8 +686,13 @@ const StudentRow: FC<StudentRowProps> = ({ student, state, setState }) => {
       </tr>
       {expanded && (
         <tr className="details-row">
-          <td colSpan={9}>
-            <ExerciseDetails student={student} state={state} setState={setState} />
+          <td colSpan={10}>
+            <ExerciseDetails
+              student={student}
+              state={state}
+              setState={setState}
+              exerciseHref={exerciseHref}
+            />
           </td>
         </tr>
       )}
@@ -661,12 +704,14 @@ interface ExerciseDetailsProps {
   student: Student;
   state: AppState;
   setState: Dispatch<SetStateAction<AppState>>;
+  exerciseHref?: (exercise: Exercise) => string | null;
 }
 
 const ExerciseDetails: FC<ExerciseDetailsProps> = ({
   student,
   state,
   setState,
+  exerciseHref,
 }) => {
   const normalizedSearch = state.exerciseSearch.trim().toLocaleLowerCase();
   const exercises = student.Exercises.filter(
@@ -730,17 +775,34 @@ const ExerciseDetails: FC<ExerciseDetailsProps> = ({
               </h4>
               {matchingExercises.length > 0 ? (
                 <ul className="student-details__list">
-                  {matchingExercises.map((exercise, index) => (
-                    <li
-                      className="exercise-card"
-                      key={`${exercise.Title}-${index}`}
-                    >
-                      <strong>{exercise.Title || "Untitled exercise"}</strong>
-                      <span className={`exercise-card__grade ${exerciseGradeClass(exercise)}`}>
-                        {exerciseGradeLabel(exercise)}
-                      </span>
-                    </li>
-                  ))}
+                  {matchingExercises.map((exercise, index) => {
+                    const href = exerciseHref?.(exercise);
+
+                    return (
+                      <li
+                        className="exercise-card"
+                        key={`${exercise.Title}-${index}`}
+                      >
+                        <div className="exercise-card__title">
+                          <strong>{exercise.Title || "Untitled exercise"}</strong>
+                          {isChallenge(exercise) && (
+                            <span className="exercise-card__type">
+                              Challenge
+                            </span>
+                          )}
+                          {href && (
+                            <ExternalLink
+                              href={href}
+                              label={`Open ${exercise.Title} in CodeGrade`}
+                            />
+                          )}
+                        </div>
+                        <span className={`exercise-card__grade ${exerciseGradeClass(exercise)}`}>
+                          {exerciseGradeLabel(exercise)}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               ) : (
                 <p className="exercise-column__empty">No matching exercises</p>

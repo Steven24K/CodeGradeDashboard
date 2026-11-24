@@ -1,14 +1,31 @@
 import "server-only";
 
+import { cookies } from "next/headers";
 import { Left, Right } from "@/utils/Either";
-import type { Exercise, Student } from "@/spa/Model";
+import type {
+  CodeGradeAssignment,
+  CodeGradeGradebook,
+  Exercise,
+  Student,
+} from "@/spa/Model";
 
 const CODEGRADE_API = "https://app.codegra.de/api/v1";
 const NEXT_TOKEN_HEADER = "Next-Token";
 
-interface Assignment {
+type Assignment = CodeGradeAssignment;
+export const CODEGRADE_TOKEN_COOKIE = "codegrade_token";
+
+export interface StudentSubmission {
   id: string;
-  name: string;
+  createdAt: string;
+  grade: number | null;
+  deadline: string | null;
+  lockDate: string | null;
+}
+
+export interface AssignmentSubmissionData {
+  assignment: Assignment;
+  submissions: StudentSubmission[];
 }
 
 interface GradeRecord {
@@ -111,6 +128,61 @@ const parseGradeRecord = (value: unknown): GradeRecord => {
   };
 };
 
+const parseDateValue = (value: unknown): string | null => {
+  if (typeof value === "string" && Number.isFinite(Date.parse(value))) {
+    return value;
+  }
+  if (isRecord(value)) {
+    for (const key of ["date", "datetime", "value"]) {
+      const date = parseDateValue(value[key]);
+      if (date) return date;
+    }
+  }
+  return null;
+};
+
+const parseSubmission = (value: unknown): StudentSubmission => {
+  if (!isRecord(value)) {
+    throw new CodeGradeServerError(
+      "CodeGrade returned an invalid submission.",
+      502,
+    );
+  }
+
+  const id = toId(value.id);
+  const createdAt = parseDateValue(value.created_at);
+  if (!id || !createdAt) {
+    throw new CodeGradeServerError(
+      "CodeGrade returned a submission without a valid ID or creation date.",
+      502,
+    );
+  }
+
+  const gradeValue = value.grade;
+  const numericGrade =
+    typeof gradeValue === "number"
+      ? gradeValue
+      : typeof gradeValue === "string" && gradeValue.trim() !== ""
+        ? Number(gradeValue)
+        : null;
+  const timeframe = isRecord(value.timeframe) ? value.timeframe : null;
+  const deadline =
+    parseDateValue(timeframe?.deadline) ?? parseDateValue(value.deadline);
+  const lockDate =
+    parseDateValue(timeframe?.lock_date) ?? parseDateValue(value.lock_date);
+
+  return {
+    id,
+    createdAt,
+    grade:
+      numericGrade !== null && Number.isFinite(numericGrade)
+        ? numericGrade
+        : null,
+    deadline,
+    lockDate,
+  };
+};
+
 const readUpstreamJson = async (
   response: Response,
   resource: string,
@@ -138,6 +210,15 @@ const readUpstreamJson = async (
       throw new CodeGradeServerError(
         "CodeGrade rejected this bearer token. Check or replace it, then reload.",
         401,
+      );
+    }
+    if (response.status === 429) {
+      const retryAfter = response.headers.get("Retry-After");
+      throw new CodeGradeServerError(
+        retryAfter
+          ? `CodeGrade is rate limiting requests. Please retry after ${retryAfter} seconds.`
+          : "CodeGrade is rate limiting requests. Please wait before retrying.",
+        429,
       );
     }
     const message =
@@ -188,16 +269,15 @@ const getUpstreamJson = async (
   };
 };
 
-export const getBearerToken = (request: Request): string => {
-  const authorization = request.headers.get("authorization");
-  const match = authorization?.match(/^Bearer\s+(.+)$/i);
-  if (!match?.[1].trim()) {
+export const getBearerToken = async (): Promise<string> => {
+  const token = (await cookies()).get(CODEGRADE_TOKEN_COOKIE)?.value;
+  if (!token?.trim()) {
     throw new CodeGradeServerError(
       "Enter a CodeGrade bearer token to continue.",
       401,
     );
   }
-  return match[1].trim();
+  return token.trim();
 };
 
 export const getCourses = async (
@@ -254,6 +334,50 @@ const getAssignments = async (
   return assignments;
 };
 
+export const getStudentSubmissions = async (
+  request: Request,
+  token: string,
+  studentId: string,
+  rawAssignments: unknown,
+): Promise<AssignmentSubmissionData[]> => {
+  if (!Array.isArray(rawAssignments)) {
+    throw new CodeGradeServerError(
+      "A course assignment list is required to load submissions.",
+      400,
+    );
+  }
+  const assignments = rawAssignments.map((assignment) =>
+    parseNamedResource(assignment, "assignment"),
+  );
+  const uniqueAssignments = [
+    ...new Map(assignments.map((assignment) => [assignment.id, assignment])).values(),
+  ];
+  const result: AssignmentSubmissionData[] = [];
+
+  for (const assignment of uniqueAssignments) {
+    const { payload } = await getUpstreamJson(
+      request,
+      token,
+      `/assignments/${encodeURIComponent(assignment.id)}/users/${encodeURIComponent(studentId)}/submissions/`,
+      `submissions for ${assignment.name}`,
+    );
+    const submissions = getCollection(
+      payload,
+      `submissions for ${assignment.name}`,
+    ).map(parseSubmission);
+
+    result.push({
+      assignment,
+      submissions: submissions.sort(
+        (first, second) =>
+          Date.parse(first.createdAt) - Date.parse(second.createdAt),
+      ),
+    });
+  }
+
+  return result;
+};
+
 const getAssignmentGrades = async (
   request: Request,
   token: string,
@@ -274,7 +398,7 @@ export const getCourseGradebook = async (
   request: Request,
   token: string,
   courseId: string,
-): Promise<Student[]> => {
+): Promise<CodeGradeGradebook> => {
   const assignments = await getAssignments(request, token, courseId);
   const students = new Map<string, GradeRecord["user"]>();
   const gradesByAssignment = new Map<string, Map<string, number | null>>();
@@ -290,7 +414,7 @@ export const getCourseGradebook = async (
     gradesByAssignment.set(assignment.id, assignmentGrades);
   }
 
-  return [...students.values()].map((student) => {
+  const parsedStudents = [...students.values()].map((student) => {
     const exercises: Exercise[] = assignments.map((assignment) => {
       const score = gradesByAssignment.get(assignment.id)?.get(student.id);
       return {
@@ -311,6 +435,8 @@ export const getCourseGradebook = async (
       Exercises: exercises,
     };
   });
+
+  return { assignments, students: parsedStudents };
 };
 
 export const jsonError = (reason: unknown): Response => {
