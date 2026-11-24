@@ -10,6 +10,7 @@ export interface Student {
   Id: string;
   Name: string;
   Exercises: Exercise[];
+  CodeGradeId?: string;
 }
 
 export type SortBy =

@@ -110,6 +110,7 @@ const isVisibleExercise = (
 interface StudentTableProps {
   state: AppState;
   setState: Dispatch<SetStateAction<AppState>>;
+  source?: string;
 }
 
 interface SortHeaderProps {
@@ -155,7 +156,11 @@ const SortHeader: FC<SortHeaderProps> = ({
   </th>
 );
 
-export const StudentTable: FC<StudentTableProps> = ({ state, setState }) => {
+export const StudentTable: FC<StudentTableProps> = ({
+  state,
+  setState,
+  source = "CSV report",
+}) => {
   const students = state.students ?? [];
   const visibleStudents = students
     .filter((student) =>
@@ -210,7 +215,7 @@ export const StudentTable: FC<StudentTableProps> = ({ state, setState }) => {
         <div>
           <span className="eyebrow">
             <span className="eyebrow__dot" />
-            Course progress · CSV report
+            Course progress · {source}
           </span>
           <h1>The class progress.</h1>
           <p>Find students who need support and track assessment readiness.</p>
@@ -509,7 +514,11 @@ export const StudentTable: FC<StudentTableProps> = ({ state, setState }) => {
             Eligible students have every assignment and the master assignment
             graded 5.5 or higher.
           </span>
-          <span>CSV is processed locally in your browser</span>
+          <span>
+            {source === "CSV report"
+              ? "CSV is processed locally in your browser"
+              : "Data fetched directly from CodeGrade"}
+          </span>
         </div>
       </section>
     </>

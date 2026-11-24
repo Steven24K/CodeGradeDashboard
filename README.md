@@ -1,21 +1,32 @@
 # CodeGrade Dashboard
 
-The CSV dashboard runs entirely in the browser: student data is not uploaded.
-The API view at `/api` is a separate detailed-view scaffold; it does not connect
-to CodeGrade yet.
+The CSV dashboard is a client-side SPA: CSV files are parsed in the browser and
+are not uploaded. The `/api` view uses local Next.js server routes to fetch
+CodeGrade courses, assignments, and grades. Its bearer token stays in page
+memory and is forwarded to the local server; it is not saved to cookies or
+local storage.
 
 Static site hosted on GitHub Pages:
 [Visit Dashboard](https://stevenkoerts.nl/CodeGradeDashboard/)
+
+The CodeGrade API view requires the local Next.js server and is not available
+from GitHub Pages. The workflow now builds and type-checks the server app; it
+does not publish a static export.
 
 ## Manual 
 1. Download Gradebook from CodeGrade.
 2. Open the CSV dashboard and choose the downloaded CSV file.
 3. Use the leaderboard to compare progress, check assessment eligibility, and
    expand a student for exercise details.
+4. For live data, start the local server with `npm run dev`, open
+   [http://localhost:3000/api](http://localhost:3000/api), enter a CodeGrade
+   bearer token, load your courses, and select one. The server fetches each
+   assignment's grades in sequence. Reload retries the selected course.
 
 ## Privacy Statement
-All data stays in the browser, everything in this dashboard is client side
-evaluated.
+CSV data stays in the browser and is evaluated locally. API mode sends the
+bearer token from the browser to the local Next.js server, which forwards API
+requests to CodeGrade. Use the API view only on a trusted local machine.
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
