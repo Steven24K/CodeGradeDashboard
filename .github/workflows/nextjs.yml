@@ -1,8 +1,10 @@
-name: Build Next.js app
+name: Validate Vercel branch
 
 on:
   push:
-    branches: ["main"]
+    branches: ["vibe-code"]
+  pull_request:
+    branches: ["vibe-code"]
   workflow_dispatch:
 
 permissions:

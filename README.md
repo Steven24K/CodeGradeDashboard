@@ -78,6 +78,20 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The branches have separate deployment targets:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `main` remains the static-export branch deployed to GitHub Pages. Keep its
+  Pages workflow and `output: 'export'` configuration on that branch.
+- `vibe-code` contains the server-backed API app. The workflow on this branch
+  validates its production build; Vercel should deploy it.
+
+In the Vercel project, connect `Steven24K/CodeGradeDashboard`, then set
+**Settings → Git → Production Branch** to `vibe-code`. Vercel will use pushes
+to `vibe-code` for production deployments. Other branches, including `main`,
+may receive Vercel preview deployments but will not replace the production
+deployment. Do not merge the server-backed `vibe-code` app into `main` while
+`main` is intended to remain a static GitHub Pages site.
+
+Vercel automatically detects Next.js and uses the repository's `yarn build`
+script. No additional environment variables are required for the current API
+flow.
