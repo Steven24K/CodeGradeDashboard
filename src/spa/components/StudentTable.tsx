@@ -116,6 +116,7 @@ interface StudentTableProps {
   source?: string;
   studentHref?: (student: Student) => string | null;
   exerciseHref?: (exercise: Exercise) => string | null;
+  activityHref?: string;
   onChangeGradebook?: () => void;
 }
 
@@ -168,6 +169,7 @@ export const StudentTable: FC<StudentTableProps> = ({
   source = "CSV report",
   studentHref,
   exerciseHref,
+  activityHref,
   onChangeGradebook,
 }) => {
   const students = state.students ?? [];
@@ -235,10 +237,18 @@ export const StudentTable: FC<StudentTableProps> = ({
           <h1>The class progress.</h1>
           <p>Find students who need support and track assessment readiness.</p>
         </div>
-        <button className="text-button" onClick={closeDashboard}>
-          <span aria-hidden="true">＋</span>
-          Change gradebook
-        </button>
+        <div className="api-page-actions">
+          {activityHref && (
+            <Link className="text-button" href={activityHref}>
+              <span aria-hidden="true">◷</span>
+              Class activity
+            </Link>
+          )}
+          <button className="text-button" onClick={closeDashboard}>
+            <span aria-hidden="true">＋</span>
+            Change gradebook
+          </button>
+        </div>
       </section>
 
       <section className="summary-grid" aria-label="Class summary">

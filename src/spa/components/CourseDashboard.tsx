@@ -215,6 +215,7 @@ export const CourseDashboard = ({
             source="CodeGrade API"
             studentHref={studentHref}
             exerciseHref={exerciseHref}
+            activityHref={`${coursePath({ id: courseId, name: courseName })}/activity`}
             onChangeGradebook={() => router.push("/api/courses")}
           />
         )}
