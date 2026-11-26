@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import {
   getDashboardState,
+  markApiDataFetched,
   studentCacheKey,
   useApiSession,
 } from "../ApiTokenContext";
@@ -126,6 +127,7 @@ export const StudentActivity = ({
   const grouping = state.activityGrouping;
 
   useEffect(() => {
+    if (!state.cacheHydrated) return;
     if (state.submissions[cacheKey]) return;
     const controller = new AbortController();
     setState((current) => ({
@@ -140,7 +142,7 @@ export const StudentActivity = ({
         if (!gradebook) {
           gradebook = await fetchCourseGradebook(courseId, controller.signal);
           if (controller.signal.aborted) return;
-          setState((current) => ({
+          setState((current) => markApiDataFetched({
             ...current,
             connected: true,
             gradebooks: { ...current.gradebooks, [courseId]: gradebook },
@@ -161,7 +163,7 @@ export const StudentActivity = ({
           controller.signal,
         );
         if (!controller.signal.aborted) {
-          setState((current) => ({
+          setState((current) => markApiDataFetched({
             ...current,
             connected: true,
             submissions: { ...current.submissions, [cacheKey]: data },
@@ -200,6 +202,8 @@ export const StudentActivity = ({
   }, [
     courseId,
     studentId,
+    state.cacheHydrated,
+    state.submissions,
     state.activityRefreshes[cacheKey],
   ]);
 

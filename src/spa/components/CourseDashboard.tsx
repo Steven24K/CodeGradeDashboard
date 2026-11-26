@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   getDashboardState,
+  markApiDataFetched,
   useApiSession,
 } from "../ApiTokenContext";
 import { CodeGradeApiError, fetchCourseGradebook } from "../CodeGradeApi";
@@ -53,6 +54,7 @@ export const CourseDashboard = ({
   const courseName = course?.name ?? titleFromSlug(courseSlug);
 
   const loadGradebook = useCallback(async (force = false) => {
+    if (!state.cacheHydrated) return;
     if (state.gradebooks[courseId] && !force) return;
     controller.current?.abort();
     const request = new AbortController();
@@ -66,7 +68,7 @@ export const CourseDashboard = ({
     try {
       const gradebook = await fetchCourseGradebook(courseId, request.signal);
       if (request.signal.aborted) return;
-      setState((current) => ({
+      setState((current) => markApiDataFetched({
         ...current,
         connected: true,
         gradebooks: { ...current.gradebooks, [courseId]: gradebook },
@@ -101,7 +103,12 @@ export const CourseDashboard = ({
         );
       }
     }
-  }, [courseId, setState, state.gradebooks]);
+  }, [
+    courseId,
+    setState,
+    state.cacheHydrated,
+    state.gradebooks,
+  ]);
 
   useEffect(() => {
     void loadGradebook();

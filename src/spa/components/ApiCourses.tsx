@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { initialApiAppState, useApiSession } from "../ApiTokenContext";
+import {
+  initialApiAppState,
+  markApiDataFetched,
+  useApiSession,
+} from "../ApiTokenContext";
 import {
   CodeGradeApiError,
   disconnectCodeGrade,
@@ -37,7 +41,7 @@ export const ApiCourses = () => {
     try {
       const results = await fetchCourses(requestSignal);
       if (requestSignal.aborted) return;
-      setState((current) => ({
+      setState((current) => markApiDataFetched({
         ...current,
         connected: true,
         courses: results,
@@ -73,7 +77,12 @@ export const ApiCourses = () => {
     setState((current) => ({ ...current, loading: "disconnect", error: "" }));
     try {
       await disconnectCodeGrade(request.signal);
-      if (!request.signal.aborted) setState(initialApiAppState());
+      if (!request.signal.aborted) {
+        setState({
+          ...initialApiAppState(),
+          cacheHydrated: true,
+        });
+      }
     } catch (reason) {
       if (!request.signal.aborted) {
         setState((current) => ({
@@ -86,10 +95,11 @@ export const ApiCourses = () => {
   };
 
   useEffect(() => {
+    if (!state.cacheHydrated) return;
     if (state.courses.length > 0) return;
     void reload();
     return () => controller.current?.abort();
-  }, []);
+  }, [state.cacheHydrated, state.courses.length]);
 
   return (
     <>
@@ -152,7 +162,9 @@ export const ApiCourses = () => {
           </section>
         )}
 
-        {!state.connected && state.loading !== "courses" ? (
+        {!state.connected &&
+        state.courses.length === 0 &&
+        state.loading !== "courses" ? (
           <section className="api-empty-state">
             <h2>Reconnect to view your courses</h2>
             <p>

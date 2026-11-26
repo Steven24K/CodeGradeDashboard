@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   initialApiAppState,
+  markApiDataFetched,
   useApiSession,
 } from "../ApiTokenContext";
 import {
@@ -33,13 +34,19 @@ export const ApiDashboard = () => {
   const controller = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (state.connected) return;
+    if (
+      !state.cacheHydrated ||
+      state.connected ||
+      state.courses.length > 0
+    ) {
+      return;
+    }
     const request = new AbortController();
     controller.current = request;
     void fetchCourses(request.signal)
       .then((courses) => {
         if (request.signal.aborted) return;
-        setState((current) => ({
+        setState((current) => markApiDataFetched({
           ...current,
           connected: true,
           courses,
@@ -58,7 +65,12 @@ export const ApiDashboard = () => {
         }
       });
     return () => request.abort();
-  }, []);
+  }, [
+    setState,
+    state.cacheHydrated,
+    state.connected,
+    state.courses.length,
+  ]);
 
   const connect = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -86,15 +98,19 @@ export const ApiDashboard = () => {
       if (courses.length === 0) {
         setState({
           ...initialApiAppState(),
+          cacheHydrated: true,
           connected: true,
           error: "No courses were returned for this token.",
+          lastFetchedAt: new Date().toISOString(),
         });
         return;
       }
       setState({
         ...initialApiAppState(),
+        cacheHydrated: true,
         connected: true,
         courses,
+        lastFetchedAt: new Date().toISOString(),
       });
       router.push("/api/courses");
     } catch (reason) {
@@ -127,7 +143,7 @@ export const ApiDashboard = () => {
           <div>
             <span className="eyebrow">
               <span className="eyebrow__dot" />
-              Live course data
+              Cached and live course data
             </span>
             <h1>Connect to CodeGrade.</h1>
             <p>
@@ -148,9 +164,9 @@ export const ApiDashboard = () => {
               </p>
             </div>
           </div>
-          {state.connected && (
+          {state.courses.length > 0 && (
             <Link className="text-button" href="/api/courses">
-              View your courses →
+              View cached courses →
             </Link>
           )}
           <form className="api-token-form" onSubmit={(event) => void connect(event)}>

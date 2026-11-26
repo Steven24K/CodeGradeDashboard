@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   getDashboardState,
+  markApiDataFetched,
   studentCacheKey,
   useApiSession,
 } from "../ApiTokenContext";
@@ -65,9 +66,6 @@ export const ClassActivity = ({
     state.courses.find((item) => item.id === courseId)?.name ??
     courseSlug.replace(/-/g, " ");
   const gradebook = state.gradebooks[courseId];
-  const [results, setResults] = useState<
-    Record<string, AssignmentSubmissions[]>
-  >({});
   const [loadingGradebook, setLoadingGradebook] = useState(!gradebook);
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [error, setError] = useState("");
@@ -75,6 +73,7 @@ export const ClassActivity = ({
   const grouping = state.activityGrouping;
 
   useEffect(() => {
+    if (!state.cacheHydrated) return;
     if (gradebook) {
       setLoadingGradebook(false);
       return;
@@ -87,7 +86,7 @@ export const ClassActivity = ({
     void fetchCourseGradebook(courseId, controller.signal)
       .then((loadedGradebook) => {
         if (controller.signal.aborted) return;
-        setState((current) => ({
+        setState((current) => markApiDataFetched({
           ...current,
           connected: true,
           gradebooks: { ...current.gradebooks, [courseId]: loadedGradebook },
@@ -116,9 +115,10 @@ export const ClassActivity = ({
       });
 
     return () => controller.abort();
-  }, [courseId, gradebook, refreshKey, setState]);
+  }, [courseId, gradebook, refreshKey, setState, state.cacheHydrated]);
 
   useEffect(() => {
+    if (!state.cacheHydrated) return;
     if (!gradebook) return;
 
     const controller = new AbortController();
@@ -128,12 +128,24 @@ export const ClassActivity = ({
     );
     const studentsWithoutCodeGradeId =
       gradebook.students.length - students.length;
+    const studentsToFetch =
+      refreshKey === 0
+        ? students.filter(
+            (student) =>
+              !state.submissions[studentCacheKey(courseId, student.CodeGradeId)],
+          )
+        : students;
+    if (studentsToFetch.length === 0 && studentsWithoutCodeGradeId === 0) {
+      setLoadingActivity(false);
+      setError("");
+      return;
+    }
+
     setLoadingActivity(true);
     setError("");
-    setResults({});
 
     void Promise.allSettled(
-      students.map((student) =>
+      studentsToFetch.map((student) =>
         fetchStudentSubmissions(
           courseId,
           student.CodeGradeId,
@@ -148,7 +160,7 @@ export const ClassActivity = ({
       const failed: string[] = [];
       let unauthorized = false;
       settled.forEach((result, index) => {
-        const student = students[index];
+        const student = studentsToFetch[index];
         if (result.status === "fulfilled") {
           loaded[student.CodeGradeId] = result.value;
         } else {
@@ -158,24 +170,30 @@ export const ClassActivity = ({
         }
       });
 
-      setResults((current) => ({ ...current, ...loaded }));
-      setState((current) => ({
-        ...current,
-        connected: unauthorized
-          ? false
-          : Object.keys(loaded).length > 0
-            ? true
-            : current.connected,
-        submissions: {
-          ...current.submissions,
-          ...Object.fromEntries(
-            Object.entries(loaded).map(([studentId, submissions]) => [
-              studentCacheKey(courseId, studentId),
-              submissions,
-            ]),
-          ),
-        },
-      }));
+      setLoadingActivity(false);
+      setState((current) => {
+        const hasLoadedData = Object.keys(loaded).length > 0;
+        const nextState = {
+          ...current,
+          connected: unauthorized
+            ? false
+            : hasLoadedData
+              ? true
+              : current.connected,
+          submissions: hasLoadedData
+            ? {
+                ...current.submissions,
+                ...Object.fromEntries(
+                  Object.entries(loaded).map(([studentId, submissions]) => [
+                    studentCacheKey(courseId, studentId),
+                    submissions,
+                  ]),
+                ),
+              }
+            : current.submissions,
+        };
+        return hasLoadedData ? markApiDataFetched(nextState) : nextState;
+      });
 
       const issues = [...failed];
       if (studentsWithoutCodeGradeId > 0) {
@@ -189,19 +207,24 @@ export const ClassActivity = ({
     });
 
     return () => controller.abort();
-  }, [courseId, gradebook, refreshKey, setState]);
+  }, [
+    courseId,
+    gradebook,
+    refreshKey,
+    setState,
+    state.cacheHydrated,
+  ]);
 
   const timeline = useMemo<ClassTimelineItem[]>(() => {
     if (!gradebook) return [];
-    return Object.entries(results)
-      .flatMap(([studentId, assignments]) => {
-        const student = gradebook.students.find(
-          (item) => item.CodeGradeId === studentId,
-        );
-        if (!student) return [];
-        return assignments.flatMap(({ assignment, submissions }) =>
+    return gradebook.students
+      .flatMap((student) => {
+        if (!student.CodeGradeId) return [];
+        const assignments =
+          state.submissions[studentCacheKey(courseId, student.CodeGradeId)];
+        return (assignments ?? []).flatMap(({ assignment, submissions }) =>
           submissions.map((submission) => ({
-            id: `${studentId}-${assignment.id}-${submission.id}`,
+            id: `${student.CodeGradeId}-${assignment.id}-${submission.id}`,
             studentName: student.Name || student.Id,
             assignmentName: assignment.name,
             assignmentId: assignment.id,
@@ -215,7 +238,7 @@ export const ClassActivity = ({
         (first, second) =>
           Date.parse(second.createdAt) - Date.parse(first.createdAt),
       );
-  }, [gradebook, results]);
+  }, [courseId, gradebook, state.submissions]);
 
   const gradebookPath = coursePath({ id: courseId, name: courseName });
   const loading = loadingGradebook || loadingActivity;

@@ -89,7 +89,7 @@ const requestLocalApi = async (
   return payload;
 };
 
-const isCourse = (value: unknown): value is CodeGradeCourse =>
+export const isCourse = (value: unknown): value is CodeGradeCourse =>
   typeof value === "object" &&
   value !== null &&
   "id" in value &&
@@ -97,7 +97,7 @@ const isCourse = (value: unknown): value is CodeGradeCourse =>
   "name" in value &&
   typeof value.name === "string";
 
-const isStudent = (value: unknown): value is Student =>
+export const isStudent = (value: unknown): value is Student =>
   typeof value === "object" &&
   value !== null &&
   "Id" in value &&
@@ -147,7 +147,7 @@ export const fetchCourses = async (
   return payload;
 };
 
-const isAssignment = (value: unknown): value is CodeGradeAssignment =>
+export const isAssignment = (value: unknown): value is CodeGradeAssignment =>
   typeof value === "object" &&
   value !== null &&
   "id" in value &&
@@ -227,7 +227,7 @@ export const fetchStudentSubmissions = async (
   return payload;
 };
 
-const isAssignmentSubmissions = (
+export const isAssignmentSubmissions = (
   value: unknown,
 ): value is AssignmentSubmissions =>
   typeof value === "object" &&
@@ -238,7 +238,7 @@ const isAssignmentSubmissions = (
   Array.isArray(value.submissions) &&
   value.submissions.every(isSubmission);
 
-const isSubmission = (value: unknown): value is CodeGradeSubmission =>
+export const isSubmission = (value: unknown): value is CodeGradeSubmission =>
   typeof value === "object" &&
   value !== null &&
   "id" in value &&

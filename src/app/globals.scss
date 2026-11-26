@@ -107,6 +107,30 @@ a {
   }
 }
 
+.api-cache-control {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  &__button {
+    cursor: pointer;
+    font: inherit;
+
+    &:disabled {
+      cursor: wait;
+      opacity: 0.6;
+    }
+  }
+
+  &__status {
+    max-width: 290px;
+    padding: 2px 8px 0;
+    color: #a9bac1;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+}
+
 .app-shell {
   width: min(1280px, calc(100% - 48px));
   margin: 0 auto;
@@ -2142,6 +2166,8 @@ a {
   .app-header {
     min-height: 66px;
     padding: 0 17px;
+    flex-wrap: wrap;
+    gap: 4px 10px;
   }
 
   .brand {
@@ -2155,10 +2181,25 @@ a {
 
   .app-nav {
     gap: 2px;
+    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 
     &__link {
       padding: 8px 9px;
       font-size: 10px;
+    }
+  }
+
+  .api-cache-control {
+    align-items: flex-end;
+
+    &__status {
+      max-width: 155px;
+      overflow: hidden;
+      padding-right: 5px;
+      text-overflow: ellipsis;
+      font-size: 8px;
     }
   }
 
