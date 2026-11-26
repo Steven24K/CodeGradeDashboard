@@ -1,6 +1,11 @@
 # CodeGradeDashboard
-Static site hosted on Github Pages: 
+The `main` branch is hosted as a static site on Github Pages: 
 [Visit Dashboard](https://stevenkoerts.nl/CodeGradeDashboard/)
+
+All code in `main` is written with my own blood, sweat and tears. 
+
+Check the `vibe-code` branch to see what co-pilot did to my project. 
+Hosted with Vercel on: https://gradebook.stevenkoerts.nl/
 
 ## Manual 
 1. Download Gradebook from CodeGrade.
